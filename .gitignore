@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# code/ 为独立 git 仓库，根仓库不跟踪
+code/
+
+# Large artifacts
+*.pt
+*.ckpt
+*.safetensors
+*.bin
+wheels/
+scratch/
+
+# Logs
+*.log
+logs/
+
+# Data
+*.parquet
+*.h5
