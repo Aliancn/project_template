@@ -5,24 +5,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/mutagen.yml"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# ============ 同步目标配置（初始化时修改，见 INIT.md） ============
+# ============ 同步目标配置（初始化时填前两项，仓库 target 随克隆登记，见 INIT.md） ============
 SESSION_PREFIX="{{PROJECT_NAME}}"
 
-# 默认 target：code（本地 <项目根>/code/ ↔ 服务器）
-CODE_REMOTE="{{REMOTE_PATH}}"        # host:dir 格式，如 my-server:/workdir/myproj
+# 服务器端仓库基目录（host:dir），各仓库映射为 本地 <项目根>/code/<repo> ↔ REMOTE_BASE/<repo>
+REMOTE_BASE="{{REMOTE_BASE}}"
 
-# 多服务器/多目录项目：取消注释并在下方 resolve_target() 中登记，
-# 本地目录须在项目根下存在同名目录
-# CODE_H20_REMOTE="another-server:/workdir/myproj"
-# RESPONSE_REMOTE="my-server:/home/user/myproj/response"
+# 每个仓库一个 target，登记三步：
+#   ① 此处加 *_REMOTE 变量（推荐写成 "${REMOTE_BASE}/<repo>"）
+#   ② resolve_target() 加同名分支（TARGET_LOCAL 固定取 <项目根>/code/<repo>）
+#   ③ ALL_TARGETS 登记
+# 示例（code/ 下克隆了 verl 仓库后）：
+# VERL_REMOTE="${REMOTE_BASE}/verl"
 
-# target 总表（新增 target 后在此登记，all 命令按此遍历）
-ALL_TARGETS="code"
-# ALL_TARGETS="code code-h20 response"
+# target 总表（空格分隔；code/ 尚无仓库时留空）
+ALL_TARGETS=""
+# ALL_TARGETS="verl sglang"
 # ================================================================
 
 # 防呆守卫：模板未初始化时禁止运行（见 INIT.md）
-if [[ "${SESSION_PREFIX}" == *'{{'* || "${CODE_REMOTE}" == *'{{'* ]]; then
+if [[ "${SESSION_PREFIX}" == *'{{'* || "${REMOTE_BASE}" == *'{{'* ]]; then
     echo "ERROR: 模板尚未初始化，请先按 INIT.md 完成初始化。" >&2
     exit 1
 fi
@@ -32,8 +34,8 @@ usage() {
 Usage: $(basename "$0") <target> <action>
 
 Targets:
-  code       Sync <project>/code/
-  all        Operate on all targets (${ALL_TARGETS})
+  <repo>     已登记的仓库 target（当前：${ALL_TARGETS:-无}）
+  all        Operate on all targets
 
 Actions:
   start      Create and start the sync session
@@ -46,32 +48,30 @@ Actions:
   restart    Stop then start the sync session
 
 Examples:
-  $(basename "$0") code start       # 启动 code 同步
-  $(basename "$0") code pause       # 暂停（切 git 分支前必须暂停）
+  $(basename "$0") verl start       # 启动 verl 同步（示例，替换为实际 target）
+  $(basename "$0") verl pause       # 暂停（切 git 分支前必须暂停）
   $(basename "$0") all status       # 查看所有会话
 EOF
 }
 
 session_name()   { echo "${SESSION_PREFIX}-${1}"; }
-session_exists() { mutagen sync list 2>/dev/null | grep -q "Name: $(session_name "$1")"; }
+# 注意：不能写成 `mutagen sync list | grep -q`——pipefail 下 grep -q 提前退出会让
+# 上游收到 SIGPIPE 而误判"不存在"（session 存在且输出较长时必现）。先缓冲再匹配。
+session_exists() {
+    local list
+    list="$(mutagen sync list 2>/dev/null || true)"
+    [[ "${list}" == *"Name: $(session_name "$1")"* ]]
+}
 
 resolve_target() {
     local t="$1"
     case "$t" in
-        code)
-            TARGET_LOCAL="${PROJECT_ROOT}/code"
-            TARGET_REMOTE="${CODE_REMOTE}"
-            ;;
-        # code-h20)
-        #     TARGET_LOCAL="${PROJECT_ROOT}/code-h20"
-        #     TARGET_REMOTE="${CODE_H20_REMOTE}"
-        #     ;;
-        # response)
-        #     TARGET_LOCAL="${PROJECT_ROOT}/response"
-        #     TARGET_REMOTE="${RESPONSE_REMOTE}"
+        # verl)
+        #     TARGET_LOCAL="${PROJECT_ROOT}/code/verl"
+        #     TARGET_REMOTE="${VERL_REMOTE}"
         #     ;;
         *)
-            echo "ERROR: Unknown target '${t}'" >&2
+            echo "ERROR: Unknown target '${t}'（尚未登记该仓库的 target？见本文件顶部配置区）" >&2
             usage >&2
             exit 1
             ;;
@@ -129,6 +129,10 @@ run_for_targets() {
         return 0
     fi
     if [ "$target" = "all" ]; then
+        if [ -z "${ALL_TARGETS}" ]; then
+            echo "ERROR: 尚未登记任何 target（code/ 下还没有仓库？先按本文件顶部配置区登记）" >&2
+            exit 1
+        fi
         for t in ${ALL_TARGETS}; do
             echo "=== [${action}] ${t} ==="
             "cmd_${action}" "$t" || true

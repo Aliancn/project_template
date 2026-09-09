@@ -16,7 +16,7 @@
 
 **本地/服务器分工**：本地用于代码、日志、大部分文档和结果的编写（源码、devlog、research、实验记录等）；服务器专注于提供运行环境和执行（GPU、集群、编译、长任务）。所有产物最终回传本地沉淀，服务器只留运行态。
 
-- **`code/`**: 源代码（算法实现、训练脚本、评测代码等）。通过 mutagen 与服务器双向同步，用于本地编辑代码。**独立 git 仓库**：在 `code/` 内 `git init`，与项目根仓库分离（根仓库通过 `.gitignore` 忽略 `code/`）；代码版本控制、分支切换在本地完成，同步到服务器运行。
+- **`code/`**: 源代码**容器目录**，每个子目录一个独立 git 仓库（如 `code/verl/`），与项目根仓库分离（根仓库通过 `.gitignore` 忽略 `code/`）。各子仓库通过 mutagen 与服务器 `{{REMOTE_BASE}}/<repo>` 双向同步（见下文），用于本地编辑代码；代码版本控制、分支切换在本地完成，同步到服务器运行。
 - **`devlog/`**: 开发日志，`INDEX.md` 为索引。
 - **`research/`**: 研究笔记、文献阅读、算法设计文档。
 - **`scripts/`**: 运维脚本（训练启动、监控、数据处理等）。
@@ -24,39 +24,42 @@
 
 ## Mutagen 代码同步
 
-使用 [mutagen](https://mutagen.io) 在本地 `code/` 与服务器之间双向同步代码（`two-way-safe` 模式），实现本地编辑 → 自动同步 → 服务器运行的工作流。本地路径自动取 `<项目根>/code/`，无需配置。
+使用 [mutagen](https://mutagen.io) 在本地 `code/` 下各仓库与服务器之间双向同步代码（`two-way-safe` 模式），实现本地编辑 → 自动同步 → 服务器运行的工作流。**每个仓库一个 target**，约定映射：本地 `<项目根>/code/<repo>` ↔ `{{REMOTE_BASE}}/<repo>`；`code/` 本身是容器目录，不做整体同步。
 
 ### 路径映射
 
 | 本地 | 服务器 |
 |------|--------|
-| `<项目根>/code/` | `{{REMOTE_PATH}}` |
+| `<项目根>/code/<repo>/` | `{{REMOTE_BASE}}/<repo>` |
+
+（初始化后把实际仓库行填进来，如 `<项目根>/code/verl/` ↔ `tt:/workdir/verl`）
 
 ### 配置与脚本
 
 | 文件 | 用途 |
 |------|------|
 | `.mutagen/mutagen.yml` | 同步配置：模式、ignore 规则、压缩、权限 |
-| `.mutagen/sync.sh` | 管理脚本：`sync.sh <target> <action>`，action 为 `start`/`stop`/`status`/`monitor`/`flush`/`pause`/`resume`/`restart` |
+| `.mutagen/sync.sh` | 管理脚本：`sync.sh <repo> <action>`，action 为 `start`/`stop`/`status`/`monitor`/`flush`/`pause`/`resume`/`restart` |
 
 ### 常用命令
 
 ```bash
-bash .mutagen/sync.sh code start     # 创建并启动同步会话（默认 target）
-bash .mutagen/sync.sh code monitor   # 实时监控同步状态
-bash .mutagen/sync.sh all status     # 查看所有会话
-bash .mutagen/sync.sh code flush     # 强制全量同步（网络抖动后恢复用）
-bash .mutagen/sync.sh code pause     # 暂停（切 git 分支前必须暂停）
-bash .mutagen/sync.sh code resume    # 恢复
-bash .mutagen/sync.sh code stop      # 终止会话
+bash .mutagen/sync.sh <repo> start    # 创建并启动该仓库的同步会话
+bash .mutagen/sync.sh <repo> monitor  # 实时监控同步状态
+bash .mutagen/sync.sh all status      # 查看所有会话
+bash .mutagen/sync.sh <repo> flush    # 强制全量同步（网络抖动后恢复用）
+bash .mutagen/sync.sh <repo> pause    # 暂停（切 git 分支前必须暂停）
+bash .mutagen/sync.sh <repo> resume   # 恢复
+bash .mutagen/sync.sh <repo> stop     # 终止会话
 ```
 
-多服务器/多目录项目：在 `.mutagen/sync.sh` 顶部配置区登记新 target（取消注释并填路径），支持 `sync.sh <target> <action>` 与 `sync.sh all <action>`。
+新增仓库（`code/` 下新子仓库）：在 `.mutagen/sync.sh` 顶部配置区登记 target（`*_REMOTE` 变量 + `resolve_target()` 分支 + `ALL_TARGETS`），支持 `sync.sh <repo> <action>` 与 `sync.sh all <action>`。
 
 ### 注意事项
 
 - **切 git 分支前必须 `pause`**，否则大量文件变化可能产生冲突。
 - `.so`、`logs/`、`scratch/`、`wheels` 等大体积目录被 ignore，不会同步。
+- 同步会话按需启动：`code/` 下尚无仓库或暂不需要同步时不必 start。启动前确认远端基目录存在（`ssh <host> mkdir -p <base>`）；仓库子目录缺失时 mutagen 会自动创建。
 
 ## Hard Rules
 
@@ -69,7 +72,7 @@ bash .mutagen/sync.sh code stop      # 终止会话
 - **优先本地编辑**: 存在于 `code/` 中的代码文件，直接在本地修改，mutagen 秒级同步到服务器，再到服务器运行。
 - **仅本地不存在的文件直接改远端**: 如 `logs/`、`.so`、`scratch/` 等被 ignore 的产物/日志，需要修改时直接 SSH 到服务器操作。
 - **需多次远端编辑的文件**: 如果某个被 ignore 的文件需要频繁远端编辑并同步回本地，从 `.mutagen/mutagen.yml` 的 ignore 列表中移除对应规则。
-- **git 操作在本地 `code/` 仓库执行**: 分支切换、commit、log 等版本操作直接在本地 `code/`（独立 git 仓库）完成，无需 SSH 到服务器；仅被 ignore 的产物/日志才在服务器上直接操作。
+- **git 操作在本地 `code/` 下各仓库执行**: 分支切换、commit、log 等版本操作直接在本地 `code/<repo>/`（各子仓库独立 git 仓库）完成，无需 SSH 到服务器；仅被 ignore 的产物/日志才在服务器上直接操作。
 
 ### 实验流程
 
