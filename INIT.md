@@ -7,7 +7,7 @@
 - [ ] 确认当前目录是复制自 `project_template` 的新项目目录（而不是模板本体）。
 - [ ] `AGENTS.md` 顶部应有 TEMPLATE NOTICE 注释；若无，说明已初始化过，停止并询问用户。
 
-复制模板推荐：`rsync -a --exclude '.git' --exclude '.DS_Store' <模板>/ <新项目>/`（`-a` 保留软链，排除模板自身的 git 历史）。
+复制模板推荐：`rsync -a --exclude '.git' --exclude '.DS_Store' <模板>/ <新项目>/`（`-a` 保留属性，排除模板自身的 git 历史）。
 
 ## Step 1 · 收集信息（向用户询问，逐项确认）
 
@@ -16,11 +16,12 @@
 | 1 | 项目名？ | `{{PROJECT_NAME}}`：AGENTS.md 标题、mutagen 会话前缀。通常即目录名，与用户确认即可 |
 | 2 | 服务器与仓库基目录（`host:/dir`，如 `tt:/workdir`）？ | `{{REMOTE_BASE}}`：`code/` 下所有仓库同步到 `{{REMOTE_BASE}}/<repo>`，无需逐仓库问路径 |
 | 3 | 项目目标（2-5 句：做什么、为什么、关键手段）？ | `{{PROJECT_GOAL}}`：AGENTS.md Project Goal 段 |
-| 4 | 实验形态？（GPU 训练 / 推理服务 / 数据处理 / 其他） | 定制 AGENTS.md "实验流程" 措辞、devlog 指标举例 |
+| 4 | 实验形态？（GPU 训练 / 推理服务 / 数据处理 / 其他） | 定制 AGENTS.md "实验流程"措辞、Hard Rules 分级的适用范围、devlog 指标举例 |
 | 5 | 是否保留 mutagen 同步机制？ | 默认保留；纯本地项目删除 `.mutagen/` 及 AGENTS.md 相关章节 |
 | 6 | `code/` 首个仓库是否已知？ | 已知（如克隆某开源仓库/PR 作基线）→ Step 2 顺带登记 target；未知 → `ALL_TARGETS` 留空，之后按"附录 A"流程新增 |
 | 7 | 需要哪些参考代码（baseline/对比系统）？ | 按需克隆进 `ref_code/`（流程见 `ref_code/AGENTS.md`）；可留空后补 |
 | 8 | 是否从兄弟项目迁移内容（research/ 笔记、共享知识库软链等）？ | 按需复制；不进 git 的软链走 `.git/info/exclude` |
+| 9 | 是否保留 `tasks/`（实验队列）与 `docs/`（机制知识库）？ | 默认**都保留**——实验型项目的通用机制。轻量项目可删，删除时同步清理 AGENTS.md 目录结构条目与对应目录 |
 
 说明：
 
@@ -39,27 +40,23 @@
 
 替换后校验：`grep -rn '{{' .` 应无结果（`sync.sh` 防呆守卫自身的 `'{{'` 模式串除外；INIT.md 自身删除前除外）。
 
-## Step 3 · 软链接确认
+## Step 3 · 定制内容
 
-```bash
-ls -l CLAUDE.md    # 应为 CLAUDE.md -> AGENTS.md 软链
-```
-
-若软链在复制/解包过程中丢失（或变成实体文件），重建：`ln -sf AGENTS.md CLAUDE.md`。
-
-## Step 4 · 定制内容
-
-按 Step 1 收集的信息调整 AGENTS.md：
+按 Step 1 收集的信息调整：
 
 - **Project Goal**: 用户原话整理成 2-5 句，写清"做什么、为什么、关键手段"。
 - **实验流程**: 按实验形态细化：GPU 训练类在"预检"写"验证 GPU/Ray 资源空闲"、推理服务类写"启动服务、验证端口与就绪探针"、纯本地项目可整段简化或删除。
-- **Hard Rules**: 与用户确认"实验启停需批准"规则的适用范围（举例是否合适、是否要加其他红线）。
+- **Hard Rules**: 与用户确认两档分级的适用范围：哪些实验属"默认放行"（低风险脚本类）、哪些属"必须请示"（完整系统链路），改写两档清单举例。
+- **`tasks/`**: 按需调整 `tasks/AGENTS.md`（优先级词表、ID 命名约定等）；决定不保留则删除整个 `tasks/`，并清理 AGENTS.md 目录结构中的对应条目。
+- **`docs/`**: 在 `docs/AGENTS.md`「组织约定」中定义本项目的分类词表（封闭集合），并同步 `docs/README.md` 的索引板块；决定不保留则删除整个 `docs/`，并清理 AGENTS.md 对应条目。
+- **`scripts/` 规范**: 按项目需要增删 `scripts/AGENTS.md` 中的规范；决定不保留则删除该文件，并清理 AGENTS.md 对应条目。
+- **`TERMS.md`**: 可留空后补；不使用术语表机制则删除该文件及 AGENTS.md「术语约定」节。
 - **Devlog 纪律**: "关键指标"举例按项目类型调整（loss、reward、吞吐、命中率、加速比等）。
-- **devlog/INDEX.md 分类**: 按项目性质调整"实验结论 / 算法设计 / 基础设施"分类，可增删。
+- **devlog/INDEX.md 分类**: 按项目性质调整"实验结论 / 实验数据 / 算法设计 / 基础设施"分类，可增删。
 - **Environment**: 写入问题 2 的实测结论（远端目录、磁盘、只读告警等服务器事实）。
 - **Key Technical Decisions / Key File Paths**: 与用户确认初始内容，没有可留空占位段。
 
-## Step 5 · 初始化动作（按需，逐项与用户确认）
+## Step 4 · 初始化动作（按需，逐项与用户确认）
 
 - [ ] `git init`（项目根仓库）+ 首次提交（`.gitignore` 已就绪，已忽略 `code/`）
 - [ ] **`code/` 不要 git init**：它是容器目录，各子仓库克隆/初始化时自带 `.git`
@@ -67,15 +64,15 @@ ls -l CLAUDE.md    # 应为 CLAUDE.md -> AGENTS.md 软链
 - [ ] 需要时从兄弟项目迁移 research/ 等内容
 - [ ] **mutagen 同步不急于启动**：`code/` 还没有仓库时无需同步。首个仓库就位并登记 target 后再启动（见附录 A 第 4 步），远端基目录缺失时先 `ssh <host> mkdir -p <base>`
 
-## Step 6 · 校验
+## Step 5 · 校验
 
 - [ ] `grep -rn '{{' .` 无残留（`sync.sh` 防呆守卫的模式串除外）
 - [ ] AGENTS.md 顶部 TEMPLATE NOTICE 注释已删除
-- [ ] `CLAUDE.md -> AGENTS.md` 软链有效
+- [ ] 保留/删除的模块与目录一致：`tasks/`、`docs/`、`scripts/AGENTS.md`、`TERMS.md` 如保留则存在且被 AGENTS.md 引用，如删除则 AGENTS.md 无残留引用
 - [ ] `git status` 无意外未跟踪文件（`.codegraph`/`.omo/` 已被 `.gitignore` 忽略）
 - [ ] 若已登记 target：`bash .mutagen/sync.sh <repo> status` 输出正常；未登记时 `bash .mutagen/sync.sh all status` 不报错
 
-## Step 7 · 收尾
+## Step 6 · 收尾
 
 删除本文件（INIT.md），然后提交：
 
