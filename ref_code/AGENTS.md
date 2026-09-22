@@ -32,3 +32,5 @@ echo "ref_code/<name>/" >> "$(git rev-parse --git-dir)/info/exclude"   # git-onl
 |------|------|------|--------|------|------|
 
 行格式示例：`| demo/ | DemoSys | v1.2.0 | a1b2c3d | github.com/org/demo | 延迟对比基线；核对缓存淘汰语义 |`
+
+> 登记行的"用途"列写清三件事：对应论文/版本、分析结论住在哪（devlog 编号 / docs 页 / 任务 ID）、与项目的关系与关键结论。登记行是后来者检索 ref 的唯一索引，值得写细。

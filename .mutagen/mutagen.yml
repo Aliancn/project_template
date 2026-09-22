@@ -81,6 +81,9 @@ sync:
         - ".env"
         - ".idea"
         - ".vscode"
+        # === 本地 agent/索引工具状态（若出现在 code/<repo>/ 下会被误同步）===
+        - ".omo"
+        - ".codegraph"
         # === 临时/备份文件 ===
         - "*.tmp"
         - "*.temp"

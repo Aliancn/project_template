@@ -40,3 +40,4 @@ logs/
 # Local agent tooling artifacts（.codegraph 是软链，规则不能带尾斜杠，否则匹配不到）
 .codegraph
 .omo/
+.claude/settings.local.json
