@@ -21,7 +21,7 @@
 | 6 | `code/` 首个仓库是否已知？ | 已知（如克隆某开源仓库/PR 作基线）→ Step 2 顺带登记 target；未知 → `ALL_TARGETS` 留空，之后按"附录 A"流程新增 |
 | 7 | 需要哪些参考代码（baseline/对比系统）？ | 按需克隆进 `ref_code/`（流程见 `ref_code/AGENTS.md`）；可留空后补 |
 | 8 | 是否从兄弟项目迁移内容（research/ 笔记、共享知识库软链等）？ | 按需复制；不进 git 的软链走 `.git/info/exclude` |
-| 9 | 是否保留 `tasks/`（实验队列）与 `docs/`（机制知识库）？ | 默认**都保留**——实验型项目的通用机制。轻量项目可删，删除时同步清理 AGENTS.md 目录结构条目与对应目录 |
+| 9 | 是否保留 `tasks/`（实验队列）、`docs/`（机制知识库）与 `RESEARCH_ROADMAP.md`（研究脉络）？ | 默认**都保留**——实验/研究型项目的通用机制。轻量或纯工程项目可删，删除时同步清理 AGENTS.md 对应条目与目录 |
 
 说明：
 
@@ -36,6 +36,7 @@
 | 文件 | 占位符 |
 |------|--------|
 | `AGENTS.md` | `{{PROJECT_NAME}}`、`{{PROJECT_GOAL}}`、`{{REMOTE_BASE}}` |
+| `RESEARCH_ROADMAP.md` | `{{PROJECT_NAME}}`（保留时） |
 | `.mutagen/sync.sh` | `SESSION_PREFIX`（=项目名）、`REMOTE_BASE`（=服务器基目录）；若 Step 1 问题 6 已知首个仓库名，按配置区注释三步登记 target |
 
 替换后校验：`grep -rn '{{' .` 应无结果（`sync.sh` 防呆守卫自身的 `'{{'` 模式串除外；INIT.md 自身删除前除外）。
@@ -51,6 +52,7 @@
 - **`docs/`**: 在 `docs/AGENTS.md`「组织约定」中定义本项目的分类词表（封闭集合），并同步 `docs/README.md` 的索引板块；决定不保留则删除整个 `docs/`，并清理 AGENTS.md 对应条目。
 - **`scripts/` 规范**: 按项目需要增删 `scripts/AGENTS.md` 中的规范；决定不保留则删除该文件，并清理 AGENTS.md 对应条目。
 - **`TERMS.md`**: 可留空后补；不使用术语表机制则删除该文件及 AGENTS.md「术语约定」节。
+- **`RESEARCH_ROADMAP.md`**: 研究型项目默认保留——按日分章的研究判断日志（记录规则见文件头部）；初始化时删除示例章节、以首个 `[mmdd]` 章节起步。纯工程/工具类项目可删除该文件及 AGENTS.md「研究脉络」节与目录结构条目。
 - **Devlog 纪律**: "关键指标"举例按项目类型调整（loss、reward、吞吐、命中率、加速比等）。
 - **devlog/INDEX.md 分类**: 按项目性质调整"实验结论 / 实验数据 / 算法设计 / 基础设施"分类，可增删。
 - **Environment**: 写入问题 2 的实测结论（远端目录、磁盘、只读告警等服务器事实）。
@@ -68,7 +70,7 @@
 
 - [ ] `grep -rn '{{' .` 无残留（`sync.sh` 防呆守卫的模式串除外）
 - [ ] AGENTS.md 顶部 TEMPLATE NOTICE 注释已删除
-- [ ] 保留/删除的模块与目录一致：`tasks/`、`docs/`、`scripts/AGENTS.md`、`TERMS.md` 如保留则存在且被 AGENTS.md 引用，如删除则 AGENTS.md 无残留引用
+- [ ] 保留/删除的模块与目录一致：`tasks/`、`docs/`、`scripts/AGENTS.md`、`TERMS.md`、`RESEARCH_ROADMAP.md` 如保留则存在且被 AGENTS.md 引用，如删除则 AGENTS.md 无残留引用
 - [ ] `git status` 无意外未跟踪文件（`.codegraph`/`.omo/` 已被 `.gitignore` 忽略）
 - [ ] 若已登记 target：`bash .mutagen/sync.sh <repo> status` 输出正常；未登记时 `bash .mutagen/sync.sh all status` 不报错
 
